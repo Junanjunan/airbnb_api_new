@@ -1,0 +1,359 @@
+* django-rest-framework.org/api-guide/
+* ccbv.co.uk
+
+# 0.7 Beautiful REST part One
+    https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+    
+    HTTP defines a set of request methods ...
+    HTTP verbs
+        * GET
+        * POST
+        * PUT
+        * DELETE
+        HEAD
+        CONNECT
+        OPTIONS
+        TRACE
+        PATCH
+
+        GET   : The GET method requests a representation of the specified resource. Requests using GET should only retrieve data
+        POST  : The POST method submits an entity to the specified resource, often causing a change in state or side effects on the server.
+        PUT   : The PUT method replaces all current representations of the target resource with the request payload.
+        DELETE: The DELETE method deletes the specified resource.
+
+        노마드코더의 간단한 표현
+        GET: 데이터 얻기
+        POST: 데이터 만들기
+        PUT: 데이터 수정
+        DELETE: 데이터 삭제
+
+        CRUD
+            Create -> POST
+            Read -> GET
+            Update -> PUT
+            Delete -> DELETE
+
+    
+    * API Desin Rules
+        - Verbs are bad (Don't use 'get', 'find', 'delete', 'edit' ...)
+        - Nouns are good
+        - Plurals are better
+
+    * Collections & Elements
+        /movies : is a collection
+        /movies/the-godfather : is an element
+
+    * Formula:
+        (Collections + Elements) + HTTP Verbs
+
+    * Good Design 
+
+        Resource                |   POST            |   GET                 |   PUT                     |   DELETE
+        --------------------------------------------------------------------------------------------------------------------------
+        /movies                 |   Create  a Movie |   Get all Movies      |   Error                   |   Error
+        --------------------------------------------------------------------------------------------------------------------------
+        /movies/the_godfather   |   Error           |   Show 'The Godfather'|   Exists ? Update : Error |   Delete 'The Godfather'    
+
+    * Use the '?' (query arguments)
+        /movies?status=now_showing
+        /movies?status=coming_soon
+        /movies?genres=horror&language=kr
+
+    * Use HTTP!
+        - 200: OK
+        - 201: Created
+        - 400: Bad Request
+        - 403: Forbidden
+        - 404: Not Found
+        - 500: Internal Server Error
+        - 501: Not Implemented
+
+
+#1.1 @api_view
+    
+    $ pipenv install djangorestframework
+    
+    config/settings.py
+        INSTALLED_APPS = ["rest_framework",]
+        
+    1. 모든 방들을 열거하기를 원한다고 해보자
+        - API View를 만들어보자
+            rooms/views.py
+                from rest_framework.decorators import api_view
+                from rest_framework.response import Respon
+
+                @api_view
+                def list_rooms(request):
+                    return Response()
+
+            127.0.0.1:8000/api/v1/rooms/list/ 가서 확인
+
+            GET, DELETE 등을 추가하려면 @api_view()에 추가하면 됨
+                
+                @api_view(["GET", "DELETE"])
+                def list_rooms(request):
+                    return Response()
+
+#1.2 Serializers
+    serialize는 파이썬 객체에서 JSON 객체로 바꿔주는 것 의미
+    
+    rooms/serializers.py
+
+        from rest_framework import serializers
+
+        class RoomSerializer(serializers.Serializer):
+            name = serializers.CharField(max_length=140)    # Room 모델과 호환시켜줄 것이기 때문에 원하는 값들을 가져와서 만들어준다.
+            price = serializers.IntegerField()
+            bedrooms = serializers.IntegerField()
+            instant_book = serializers.BooleanField()
+
+    rooms/views.py
+        from rest_framework.decorators import api_view
+        from rest_framework.response import Respon
+        from .models import Room
+        from .serializers import RoomSerializer
+
+        @api_view
+        def list_rooms(request):
+            rooms = Room.objects.all()
+            serialized_rooms = RoomSerializer(rooms)
+            return Response(data=serialized_rooms.data)
+
+    이렇게 해주고 /api/v1/rooms/list를 보면 아래와 같은 오류 발생해야 정상
+    AttributeError at /api/v1/rooms/list/ 
+    Got AttributeError when attempting to get a value for field 'name' on serializer 'RoomSerializer'.
+    The serializer field might be named incorrectly and not match any attribute or key on the 'QuerySet' instance.
+    Original exception text was: 'QuerySet' object has no attribute 'name'.
+
+    serializers.py에 적용시킨 것을 보면, 하나의 객체에 대해서 다룰 수 있도록 만들었지, 방들의 리스트(쿼리셋)를 이해하도록 만든 것이 아니기 떄문에 위와 같은 오류가 발생
+        -> RoomSerializer(rooms, many=True) 로 해결
+
+    rooms/views.py
+        from rest_framework.decorators import api_view
+        from rest_framework.response import Respon
+        from .models import Room
+        from .serializers import RoomSerializer
+
+        @api_view
+        def list_rooms(request):
+            rooms = Room.objects.all()
+            serialized_rooms = RoomSerializer(rooms, many=True)
+            return Response(data=serialized_rooms.data)
+
+#1.3 Serializers part Two
+    그냥 Serializer 대신, ModelSerializer를 이용하면 더 간단하게 가능
+    
+    rooms/serializers.py
+
+        from rest_framework import serializers
+        from .models import Room
+
+        class RoomSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = Room
+                fields = ('name', 'price', 'instant_book')
+
+    유저가 superhost 인지 등 추가적인 정보를 얻도록 만들자
+    serailizer를 통해 부가적인 정보를 가져오도록 user를 만들고, 이 user를 rooms에서 이용
+
+    users/serializers.py
+
+        from rest_framework import serializers
+        from .models import User
+
+        class TinyuserSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = User
+                fields = ('username', 'superhost')
+
+
+    rooms/serializers.py
+
+        from rest_framework import serializers
+        from users.serializers import TinyUserSerializer
+        from .models import Room
+
+        class RoomSerializer(serializers.ModelSerializer):
+
+            user = TinyUserSerializer()
+
+            class Meta:
+                model = Room
+                fields = ('name', 'price', 'instant_book')
+
+
+#1.4 Class Based Views
+
+    * 세세하게 커스텀 할때는 함수에 기반한 @api_view를 이용
+      편하게 만드는 것은 generc view라 불리는 Class Based View를 이용, 그 전에 일반적인 APIView를 보자
+
+    rooms/views.py
+        from rest_framework.views import APIView
+        from rest_framework.response import Response
+        from .models import Room
+        from .serializers import RoomSerializer
+
+        class ListRoomsView(APIView):
+            def get(self, request):
+                rooms = Room.objects.all()
+                serializer = RoomSerializer(rooms, many=True)
+                return Response(serializer.data)
+
+    rooms/urls.py
+        from django.urls import path
+        from . import views
+
+        app_name = 'rooms'
+
+        urlpatterns = [path('list', views.ListRoomsView.as_view())]
+
+
+    generic view의 하나인 ListApiView를 이용해보자
+        rooms/views.py
+            from rest_framework.generics import ListAPIView
+            from rest_framework.response import Response
+            from .models import Room
+            from .serializers import RoomSerializer
+
+            class ListRoomsView(ListAPIView):
+                queryset = Room.objects.all()
+                serializer_class = RoomSerializer
+
+        여기까지만 해도 api 가져와진다
+    
+    이제 pagination을 해보자-> settings에 Django Rest Framework에 대한 설정 필요
+    confing/settings.py
+        # Django Rest Framework
+
+        REST_FRAMEWORK = {
+            "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+            "PAGE_SIZE": 10,
+        }
+
+
+#1.5 ListAPIView
+
+    rooms/views.py
+        from rest_framework.generics import ListAPIView, RetrieveAPIView
+        from rest_framework.response import Response
+        from .models import Room
+        from .serializers import RoomSerializer
+
+        class ListRoomsView(ListAPIView):
+            queryset = Room.objects.all()
+            serializer_class = RoomSerializer
+
+        class SeeRoomView(RetrieveView):
+            pass
+
+    rooms/urls.py
+        urlpatterns += path("<int:pk>/", views.SeeRoomView.as_view())
+
+
+    rooms/serializers.py
+        from rest_framework import serializers
+        from users.serializers import TinyUserSerializer
+        from .models import Room
+
+        class RoomSerializer(serializers.ModelSerializer):
+
+            user = TinyUserSerializer()
+
+            class Meta:
+                model = Room
+                fields = ('pk', 'name', 'price', 'instant_book')
+
+        class BigRoomSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = Room
+                exclude = ()
+
+    rooms/views.py
+        from rest_framework.generics import ListAPIView, RetrieveAPIView
+        from rest_framework.response import Response
+        from .models import Room
+        from .serializers import RoomSerializer, BigRoomSerializer
+
+        class ListRoomsView(ListAPIView):
+            queryset = Room.objects.all()
+            serializer_class = RoomSerializer
+
+        class SeeRoomView(RetrieveView):
+            queryset = Room.objects.all()
+            serializer_class = BigRoomSerializer
+            # lookup_url_kwarg = "pk" # "pkkk" 등으로 자유롭게 바꿀 수 있음
+
+    * BigRoomSerializer나, SeeRoomView를 보면, queryset이 정의되어 있지 개별 room을 보는 것은 나와있지 않다. 그런데도 pk값을 통해서 queryset 안의 개별 room을 가져오는게 가능하다.
+    rest_framework가 알아서 해주는 것
+
+
+#1.6 ModelViewSet
+    
+    rooms/viewsets.py
+        from rest_framework import viewsets
+        from .models import Room
+        from .serializers import BigRoomSerializer
+
+        class RoomViewset(viewsts.ModelViewSet):
+            queryset = Room.objects.all()
+            serializer_class = BigRoomSerializer
+
+
+    ViewSet은 위에서 하던것처럼 url을 주지 않아도 된다.
+
+    rooms/urls.py
+        from rest_framework.routers import DefaultRouter
+        from . import viewsets
+
+        router = defaultRouter()
+        router.register('', viewsets.RoomViewset, basename='room')
+
+        urlpatterns = router.urls
+
+    이렇게 해주고 보면,
+    ViewSet은 자동으로 GET, POST, PUT, DELETE, Pagination 기능을 갖는 것을 볼 수 있다.
+
+    -- 여기까지가 CRUD 중 R을 한 것 --
+
+
+#2 BUILDING THE REST API
+
+#2.0 ListRoomsView & SeeRoomView
+    
+    users/serializers.py
+        from rest_framework import serializers
+        from .models import User
+
+        class UserSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = User
+                exclude = ('groups', 'user_permissions', 'password', 'last_login', 'is_superuser', 'is_staff', 'is_active', 'favs')
+
+
+    rooms/serializers.py
+        from rest_framework import serializers
+        from users.serializers import UserSerializer
+        from .models import Room
+
+        class RoomSerializer(serializers.ModelSerializer):
+
+            user = TinyUserSerializer()
+
+            class Meta:
+                model = Room
+                exclude = ('modified',)
+
+
+    rooms/views.py
+        from rest_framework.generics import ListAPIView, RetrieveAPIView
+        from rest_framework.response import Response
+        from .models import Room
+        from .serializers import RoomSerializer
+
+        class ListRoomsView(ListAPIView):
+            queryset = Room.objects.all()
+            serializer_class = RoomSerializer
+
+        class SeeRoomView(RetrieveView):
+            queryset = Room.objects.all()
+            serializer_class = RoomSerializer
