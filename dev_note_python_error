@@ -1,0 +1,7 @@
+- pipenv shell - python version error
+    pipenv shell을 했을때, version 오류가 날때, 버전을 특정해서 pipenv 을 구성하면 됨
+    https://technote.kr/375
+        $ pipenv --python my-version
+        -> pipenv --python 3.8
+
+        이렇게하고 pipenv shell 하면 잘 됨

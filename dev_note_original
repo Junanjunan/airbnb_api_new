@@ -376,7 +376,7 @@
                 model = Room
                 exclude = ("modified",)
 
-    (roms/views.py)
+    (rooms/views.py)
         from rest_framework.generics import ListAPIView, RetrieveAPIView
         from rest_framework.response import Response
         from .models import Room
@@ -498,7 +498,7 @@
             check_out = serializers.TimeField(default="00:00:00")
             instant_book = serializers.BooleanField(default=False)
 
-            def create(self, validated_data):                   # rooms/views.py에서 작성한 print(dir(serializer))를 통해서 확인한 method를 활용(create)
+            def create(self, validated_data):                   # rooms/views.py에서 작성한 method == "POST"인 경우에서 print(dir(serializer))를 통해서 확인한 method를 활용(create)
                 return Room.objects.create(**validated_data)
 
         # 특히 serializer에 있는 method 중 다음 3가지를 유용하게 쓸 수 있다.
@@ -895,6 +895,7 @@
     # put할시 넘어온 validated_data는 {"name":"arigato"} 인데, 위처럼 return 하면, name이 모든 room에 영향을 미치는데... 왜 그러는지 이유는 모르겠다...
     # Room.objects 가, Room의 모든 object를 가리키기 때문에, 모든 object, 즉 모든 room의 이름을 바꾸게 되는 것 같다.
     # 아래에서 보면 instance가 objects 중 한개를 의미하는 듯 함. instance를 조작해서 update하면 한가지만 저장 됨
+    # return 값을 return Room.objects.update(**validated_data) 에서 return instance로 고쳤더니 해결됨 - 첫 return 값이 모든 validated_data에 대해서 update 하는걸로 돼서 그런듯... intance만 return 하는 것으로 하면 되는 듯..
 
 # 2.5 Room Detail PUT part Two
     (rooms/serializers.py)
