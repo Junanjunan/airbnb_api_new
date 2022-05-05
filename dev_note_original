@@ -1758,9 +1758,14 @@
             ]
         }
 
-    token을 통해서 유저 인증등을 진행하려고 하는데, authentication credentials 등이 없다는 오류가 발생한다...
-    Custom authentication을 해보자
-    Django REST framework에 가서 API Guide에 Custom authentication 이용 https://www.django-rest-framework.org/api-guide/authentication/#custom-authentication
+    Insomnia 활용
+        POST를 통해서 def login을 해서 얻은 token을, api/v1/users/me에 GET으로 접근할때 header에 포함시켜 보내고자 한다.
+        Insomnia에서 Header tab을 선택,
+        Header 에 Authorization 입력
+        value 에 X-JWT token 입력 (X-JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJwayI6MX0.2vi3aS2Ik8_qs7EFGx1L7ZD0S4c7ZAp_eqCaVmdQu-I)
+        이걸 GET으로 보내면 아래와 같은 오류 발생
+        "detail": "Authentication credentials were not provided."
+        Custom authentication을 통햏 해결해보자(Django REST framework에 가서 API Guide에 Custom authentication 이용 https://www.django-rest-framework.org/api-guide/authentication/#custom-authentication)
 
     (config/authentication.py) 생성, 바로 위에서 볼수 있는 Example 가져와서 수정
         from django.contrib.auth.models import User
@@ -1802,7 +1807,7 @@
                 ]
             }
 
-        이렇게 해주고 JWTtoken을 보내면(어떤 프로그램으로 보내던데...) console에 'HTTP_AUTHORIZATION' : "JWT token 내용" 출력 됨
+        이렇게 해주고 Insomnia에 JWTtoken을 보내면 console에 'HTTP_AUTHORIZATION' : "JWT token 내용" 출력 됨
         이를 다시 출력해보자
 
         이렇게 해주고
@@ -1811,16 +1816,15 @@
         "username":"taltal",
         "password": 123
         }
-        를 POST 해주면 request.META 에 대한 정보가 출력, 근데 나는 HTTP_AUTHORIZATION이 없음...
+        를 POST 해주면 request.META 에 대한 정보가 출력, HTTP_AUTHORIZATION에 Insomnia를 통해 보내준 Header 내용(X-JWT 토큰 값) 나옴
 
-        /api/vi/users/me/ 를 들어가도, 어떻게 해도 HTTP_AUTHORIZATION 없음... jwt를 받아오지도 않음.... 뭐지...
 
         (config/authentication.py)
             class JWTAuthentication(authentication.BaseAuthentication):
                 def authenticate(self, request):
                     print(request.META.get("HTTP_AUTHORIZATION"))
         
-        X-JWT를 구분해서 보려면(X-JWT는 관습적으로 붙음)
+        X-JWT를 구분해서 보려면(X-JWT는 관습적으로 붙음, Bearer를 붙이기도 하고, 아예 안쓰기도 함 - 임의대로)
         (config/authentication.py)
             class JWTAuthentication(authentication.BaseAuthentication):
                 def authenticate(self, request):
@@ -1846,26 +1850,24 @@
                         if token is None:
                             return None
                         xjwt, jwt_token = token.split(" ")                  # token 구조를 분석하고
-                        # jwt.decode(encoded_jwt, 'secret', algorithms=['HS256'])       # 기본 형식, pyjwt documentation 참고
-                        decoded = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=['HS256'])  # decode 하고
+                        # jwt.decode(encoded_jwt, 'secret', algorithms=['HS256'])       # 위의 jwt를 decode 할수 있다. import jwt 해준후 jwt.decode() 활용 기본 형식, pyjwt documentation 참고 
+                        decoded = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=['HS256'])  # decode 하고   # from django.conf import settings
+                        print(decoded)      # {'id': 1} 나옴
                         pk = decoded.get("pk")                              
                         user = User.objects.get(pk=pk)                      # decode한 token으로 user도 찾고
-                        return (user, None)                                 # 그 user를 return
-                    except (ValueError, jwt.exceptions.DecodeError, User.DoesNotExist):
+                        return (user, None)                                 # 그 user를 return 하거나 None 을 return?
+                    except (ValueError, jwt.exceptions.DecodeError, User.DoesNotExist): # jwt.exceptions.DecodeError : jwt.decode(jwt_token, ~) 에서 jwt_token이 잘못된 형태로 들어올때 생기는 error
                         return None
                     # except ValueError:                                        # 위 except를 다음과 같이 2개로 나눠도 된다
                     #     return None
                     # except jwt.exceptions.DecodeError:
                     #     raise exceptions.AuthenticationFailed(detail="JWT Format Invalid")
-
+        위와 같이 하고 Insomnia에 json에 값 입력하고, Header에 토큰 입력하고, GET 으로 api/v1/users/me를 GET하면 유저에 대한 정보를 잘 불러옴
         위와 같이 해서 우리 API가 JWT token을 받았을 때, authentication을 하기 위해서 token을 어떻게 이해하는지 가르친 것임
-        JWT Authentication 완료
+            /api/v1/users/me 로 token을 보내면
+            우리 서버는 token을 HTTP로부터 받아서(def login) token 구조를 분석하고 decode하고(jwt.decode) 
+            거기서 얻은 pk로 user를 찾아 user를 return해서 login을 하는 원리임
 
-    이해는 다 되는것 같은데, HTTP_AUTHORIZATION으로 token을 얻어오는걸 할수가 없음... 외부에서 요청시만 있는 건지... 왜 안뜨는지 모르겠다..
-
-    --> REST framework site에서 조작하는 것에는 HTTP_AUTHORIZATION 이 없다.
-        airbnb-native 연동해서, 모바일에서 조작하니 HTTP_AUTHORIZATION 출력됨. 그 안에 token도
-        아무래도 외부에서 token을 요청하는 과정에서 HTTP_AUTHORIZATION이 사용되는 것 같음... 정확한 원리는 모르겠으나 아무튼 그럼
 
 # 2.13 JWT Recap
     TokenAuthentication을 이용할 수도 있다.
