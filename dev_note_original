@@ -2094,7 +2094,7 @@
             min_price = request.GET.get('min_price', None)
             beds = request.GET.get('beds', None)
             bedrooms = request.GET.get('bedrooms', None)
-            bath = request.GET.get('bath', None)
+            bathrooms = request.GET.get('bath', None)
             paginator = OwnPagination()
             rooms = Room.objects.filter()
             results = paginator.paginate_queryset(rooms, request)
@@ -2132,7 +2132,7 @@
 
 
 # 2.16 Searching Part Two
-    위도, 경도 추가하자 / 구글맵 이용해주는데, F12로 들어가서 Console이 있는 부분에 점3개 있는 부분클릭해서 Sensors로 확인하면 위도, 경도 등 위치 정보 확인, 이용 가능
+    위도, 경도 추가하자 / 구글맵 이용해주는데, F12로 들어가서 Console이 있는 부분에 점3개 있는 부분클릭해서 More tools -> Sensors로 확인하면 위도, 경도 등 위치 정보 확인, 이용 가능
     (rooms/views.py)
         @api_view(["GET"])
         def room_search(request):
@@ -2184,13 +2184,13 @@
     (rooms/serializers.py)
         class RoomSerializer
 
-            am_i_sexy = serializers.SerializerMethodField       # SerializerMethodField는 get 함수와 항상 같이 다녀야 한다. (안그럼 오류 발생)
+            am_i_sexy = serializers.SerializerMethodField()     # SerializerMethodField는 get 함수와 항상 같이 다녀야 한다. (안그럼 오류 발생)  # get 함수 만들기 전에 api/v1/rooms/1 등으로 가보면 오류 발생할것임 'RoomSerializer' object has no attribute 'get_am_i_sexy'
 
-            def get_am_i_sexy(self,obj):                        # serializer에 있는 모든 object를 각각 불러온다.
+            def get_am_i_sexy(self,obj):                        # serializer에 있는 모든 object를 각각 불러온다. / self는 serializer, obj는 room을 가리킴
                 print(obj)                                      # obj를 print해보면 room name들이 나온다. 즉, obj는 현재 처리중인 room을 가리킨다
-                return True
+                return True                                     # api view를 보면, "am_i_sexy": true, 로 추가되어 있는것 확인 가능
 
-    ** 위와 같이 SerializedMethodField를 이용하면, REST Framework에 새로운 항목을 만들어 줄 수 있다.
+    ** 위와 같이 SerializedMethodField를 이용하면, REST Framework에 새로운 항목을 만들어 줄 수 있다. / model을 변경시키지 않고 할 수 있는 것이 핵심인듯
         
         get이 자동으로 붙여지는 이름이 아닌 다른 이름을 원한다면 다음과 같이!
         
@@ -2200,7 +2200,8 @@
                 print(obj)
                 return True
 
-    이 다음부터는, 이제 누가 해당 serializer를 요청하는지를 알아야 한다.
+    위에는 method를 만드는 방법을 배운것이고
+    이 다음부터는, 이제 누가 해당 serializer를 요청하는지를 알아야 한다.(Who is requesting?)
 
     (rooms/views.py)
         class RoomsView(APIView):
@@ -2235,6 +2236,8 @@
                 return obj in user.favs.all()       # ex 2 in [1,2,3,4]  인 경우 True, 5 in [1,2,3,4]인 경우 False 를 출력
         return False                                # 그 외에는 False만 출력
 
+
+    admin에서 fav 방을 추가해서 보면, 추가된 방은 is_fav 값이 true로 나오는 것 확인 가능
 
 # 3.1 RoomViewSet permissions
 
@@ -2306,7 +2309,7 @@
     두가지가 있다.
     1은 리스트 또는 개별 object 확인에 필요
     2는 detail views를 위한 것이다. ex) /rooms/1 -> object에 대해서 볼수 있는 권한이 있는지 체크
-    2는 object 들에 대해서만 사용 가능 -> 우리가 원하는 것..
+    2는 object 들에 대해서만 사용 가능(1보다 한정된 기능) -> 우리가 원하는 것: 우리는 object에 대해서 권한 설정을 해줄 것이다.
 
     (rooms/views.py)
         from .permissions import IsOwner
