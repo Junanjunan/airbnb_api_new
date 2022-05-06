@@ -1927,7 +1927,7 @@
                 paginator.page_size = 20
                 rooms = Room.objects.all()
                 results = paginator.paginate_queryset(rooms, request)
-                serializer = RoomSerializer(results, many=True)                     # .data 아래에 적용
+                serializer = RoomSerializer(results, many=True).data                     # .data 아래에 적용
                 return paginator.get_paginated_response(serializer)            # paginaton을 적용한 response로 바꿔주었다. # 다음이나 이전 페이지 url 등을 나타내준다.
 
             def post(self, request):
