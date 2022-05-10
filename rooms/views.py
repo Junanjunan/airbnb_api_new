@@ -60,6 +60,7 @@ from .permissions import IsOwner
 
 class RoomViewSet(ModelViewSet):
     queryset = Room.objects.all()
+    # print(queryset)
     serializer_class = RoomSerializer
 
     def get_permission(self):
@@ -104,6 +105,8 @@ class RoomViewSet(ModelViewSet):
             rooms = Room.objects.all()
         results = paginator.paginate_queryset(rooms, request)
         serializer = RoomSerializer(results, many=True)
+        for room in rooms:
+            print(room.photos.all())
         return paginator.get_paginated_response(serializer.data)
 
 

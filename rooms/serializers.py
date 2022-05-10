@@ -1,16 +1,23 @@
 from rest_framework import serializers
 from users.serializers import RelatedUserSerializer
-from .models import Room
+from .models import Room, Photo
+
+
+class PhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Photo
+        fields = ('__all__')
 
 
 class RoomSerializer(serializers.ModelSerializer):
 
     user = RelatedUserSerializer(read_only=True)
     is_fav = serializers.SerializerMethodField()
+    photos = PhotoSerializer(read_only=True, many=True)
 
     def get_is_fav(self, obj):
         request = self.context.get('request')
-        print(request.user)
+        # print(request.user)
         if request:
             user = request.user
             if user.is_authenticated:
@@ -20,7 +27,7 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         exclude = ("modified",)
-        read_only_fields = ('user', 'id', 'created', 'updated')
+        read_only_fields = ('user', 'id', 'created', 'updated', 'photos')
 
     def validate(self, data):
         if self.instance:

@@ -2782,3 +2782,66 @@ djangorestframework 설치(pipenv install djangorestframework) 했는데도 인�
 
     # 그 외 API 에 대한 것을 보도록 하자. 특히, caching, throttling, versioning, validators 등...
         https://www.django-rest-framework.org/api-guide
+
+
+    * ForeignKey를 api 로 불러오기 Representing foreign key values in Django serializers
+        https://www.sankalpjonna.com/learn-django/representing-foreign-key-values-in-django-serializers
+        ForeignKey는 위와 같이 했을때 (ModelSerializer 사용) api로 불러왔을때 나오지가 않음
+        따로 ForeignKey에 관한 Serializer를 만들어주고, 그 Serializer를 해당 ForeignKey를 사용하는 Model의 Serializer에서 정의해줘야 사용가능
+
+        ex)
+
+            models.py
+
+                from django.db import models
+
+                class Artist(models.Model):
+                name = models.CharField(max_length=255)
+                
+                def __str__(self):
+                    return self.name
+
+                class Song(models.Model):
+                name = models.CharField(max_length=255)
+                artist = models.ForeignKey(Artist, related_name="songs", on_delete=models.CASCADE)
+                
+                def __str__(self):
+                    return self.name
+            ----------------------------------
+
+            serializers.py
+
+                from rest_framework import serializers
+                from .models import Song, Artist
+
+
+                class SongSerializer(serializers.ModelSerializer):
+                    class Meta:
+                    model = Song
+                    fields = ('id', 'name')
+                    
+                class ArtistSerializer(serialisers.ModelSerializer):
+                songs = SongSerializer(many=True)
+                
+                class Meta:
+                    model = Artist
+                    fields = ('id', 'name', 'songs')
+
+
+            --------------------------------
+            api return
+
+                {
+                "id": 1,
+                "name": "Beatles",
+                "songs": [
+                    {
+                    "id": 1,
+                    "name": "I am the walrus"
+                    },
+                    {
+                    "id": 2,
+                    "name": "Come together"
+                    }
+                ]
+                }

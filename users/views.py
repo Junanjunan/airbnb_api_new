@@ -47,7 +47,7 @@ class FavsView(APIView):
     def put(self, request):
         pk = request.data.get("pk", None)
         user = request.user
-        print(pk)
+        # print(pk)
         if pk is not None:
             try:
                 room = Room.objects.get(pk=pk)
@@ -80,7 +80,7 @@ def login(request):
     user = authenticate(username=username, password=password)
     if user is not None:
         encoded_jwt = jwt.encode({"pk":user.pk}, settings.SECRET_KEY, algorithm="HS256")
-        print(encoded_jwt)
+        # print(encoded_jwt)
         return Response(data={"token":encoded_jwt, "id":user.pk})
     else:
         return Response(status=status.HTTP_401_UNAUTHORIZED)
