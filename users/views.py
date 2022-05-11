@@ -84,3 +84,13 @@ def login(request):
         return Response(data={"token":encoded_jwt, "id":user.pk})
     else:
         return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+
+class UserFavsView(APIView):
+    def get(self, request, pk):
+        sample_user = User.objects.get(username="jjj1305@hanmail.net")
+        print(sample_user.pk)
+        print(sample_user.username)
+        user = User.objects.get(pk=pk)
+        serializer = RoomSerializer(user.favs.all(), many=True).data
+        return Response(serializer)
