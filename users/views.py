@@ -41,7 +41,7 @@ class FavsView(APIView):
 
     def get(self, request):
         user = request.user
-        serializer = RoomSerializer(user.favs.all(), many=True).data
+        serializer = RoomSerializer(user.favs.all(), many=True, context={"request": request}).data
         return Response(serializer)
 
     def put(self, request):
@@ -88,9 +88,6 @@ def login(request):
 
 class UserFavsView(APIView):
     def get(self, request, pk):
-        sample_user = User.objects.get(username="jjj1305@hanmail.net")
-        print(sample_user.pk)
-        print(sample_user.username)
         user = User.objects.get(pk=pk)
-        serializer = RoomSerializer(user.favs.all(), many=True).data
+        serializer = RoomSerializer(user.favs.all(), many=True, context={'request':request}).data
         return Response(serializer)
