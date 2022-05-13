@@ -91,3 +91,19 @@ class UserFavsView(APIView):
         user = User.objects.get(pk=pk)
         serializer = RoomSerializer(user.favs.all(), many=True, context={'request':request}).data
         return Response(serializer)
+
+    def put(self, request, pk):
+        pk = request.data.get("pk", None)
+        user = request.user
+        # print(pk)
+        if pk is not None:
+            try:
+                room = Room.objects.get(pk=pk)
+                if room in user.favs.all():
+                    user.favs.remove(room)
+                else:
+                    user.favs.add(room)
+                return Response()
+            except Room.DoesNotExist:
+                pass
+        return Response(status=status.HTTP_400_BAD_REQUEST)
